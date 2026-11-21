@@ -17,6 +17,17 @@
 #import "CateMenuPreview_Headers.h"
 #import "imgui.h"
 #import "imgui_impl_metal.h"
+#import <os/log.h>
+
+static os_log_t sLog = nil;
+static void CateLog(const char *fmt, ...) NS_FORMAT_FUNCTION(1,2);
+static void CateLog(const char *fmt, ...) {
+    if (!sLog) sLog = os_log_create("com.qhun22.cateprev", "touch");
+    va_list ap; va_start(ap, fmt);
+    NSString *msg = [[NSString alloc] initWithFormat:@(fmt) arguments:ap];
+    va_end(ap);
+    os_log(sLog, "%{public}@", msg);
+}
 
 // ============================================================
 // File-scope statics — MUST be declared before @implementation
@@ -42,6 +53,13 @@ static struct {
     uint8_t  flag3C;
     uint8_t  flag3D;
 } sCateTouch_preview;
+
+// Debug counters (HUD + console)
+static uint32_t g_dbg_touchReceived  = 0;
+static uint32_t g_dbg_touchBegan     = 0;
+static uint32_t g_dbg_clickFired     = 0;
+static uint32_t g_dbg_frameCount     = 0;
+static CGPoint  g_dbg_lastTouchPos   = {0, 0};
 
 // Launcher position (TEST_ONLY: CONFIRMED 48×48, screen-clamped)
 static CGPoint sLauncherPos = {16.0f, 100.0f};
@@ -195,6 +213,7 @@ ImGuiDrawView * _Nullable g_TestImGuiDrawView = nil;
 
 // CONFIRMED: updateIOWithTouchEvent: (0xA140, 0x67C bytes)
 - (void)updateIOWithTouchEvent:(UIEvent *)event {
+    g_dbg_touchReceived++;
     if (!(CateGateStub() & 1)) return;
     if (!ImGui::GetCurrentContext()) return;
 
@@ -239,6 +258,9 @@ ImGuiDrawView * _Nullable g_TestImGuiDrawView = nil;
             sCateTouch_preview.downPos    = p;
             sCateTouch_preview.currentPos = p;
             sCateTouch_preview.state      = 1; // candidate
+            g_dbg_touchBegan++;
+            g_dbg_lastTouchPos = p;
+            CateLog("touch began (%.0f,%.0f) total=%u", p.x, p.y, g_dbg_touchBegan);
             io.AddMousePosEvent(p.x, p.y);
             io.AddMouseButtonEvent(0, true);
             break;
@@ -317,10 +339,12 @@ ImGuiDrawView * _Nullable g_TestImGuiDrawView = nil;
     MTLRenderPassDescriptor   *renderPass    = view.currentRenderPassDescriptor;
 
     if (renderPass) {
+        g_dbg_frameCount++;
         ImGui_ImplMetal_NewFrame(renderPass); // CONFIRMED: FUN_2DF8FC equivalent
         ImGui::NewFrame();                    // CONFIRMED: FUN_2889FC
 
         [self _drawTestMenuPayload];          // TEST_ONLY (replaces opaque FUN_B712C)
+        [self _drawDebugHUD];                 // TEST_ONLY: touch/state diagnostics
         [self _drawLauncher:CGSizeMake((float)(sz.width  / scale),
                                        (float)(sz.height / scale))];
 
@@ -404,6 +428,33 @@ ImGuiDrawView * _Nullable g_TestImGuiDrawView = nil;
     ImGui::End();
 }
 
+// TEST_ONLY: debug HUD — top-right corner, shows touch/render diagnostics.
+// Remove or ifdef-out for production builds.
+- (void)_drawDebugHUD {
+    ImGuiIO &io = ImGui::GetIO();
+    float hudW = 220.0f;
+    float hudH = 110.0f;
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - hudW - 4.0f, 4.0f),
+                            ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(hudW, hudH), ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.75f);
+    ImGui::Begin("##DBG", nullptr,
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoNav   |
+        ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+    ImGui::TextColored(ImVec4(1,1,0,1), "DEBUG HUD");
+    ImGui::Text("frame:  %u",    g_dbg_frameCount);
+    ImGui::Text("touch:  %u rx / %u began",
+                g_dbg_touchReceived, g_dbg_touchBegan);
+    ImGui::Text("lastXY: (%.0f, %.0f)",
+                g_dbg_lastTouchPos.x, g_dbg_lastTouchPos.y);
+    ImGui::Text("click:  %u",    g_dbg_clickFired);
+    ImGui::Text("open:   %s",    g_menuOpen_710C40 ? "YES" : "NO");
+
+    ImGui::End();
+}
+
 // Launcher 48×48 draggable (CONFIRMED size/drag/clamp from PARTIAL FUN_B8B0 analysis)
 - (void)_drawLauncher:(CGSize)screenSize {
     ImGui::SetNextWindowPos(ImVec2(sLauncherPos.x, sLauncherPos.y),
@@ -429,6 +480,9 @@ ImGuiDrawView * _Nullable g_TestImGuiDrawView = nil;
     } else if (ImGui::IsItemClicked()) {
         g_menuOpen_710C40 = !g_menuOpen_710C40;
         self.mtkView.menuOpen = (BOOL)g_menuOpen_710C40;
+        g_dbg_clickFired++;
+        CateLog("launcher clicked → menuOpen=%d (click#%u)",
+                g_menuOpen_710C40, g_dbg_clickFired);
     }
 
     ImGui::End();

@@ -45,6 +45,14 @@ static uint8_t g_hitTestFlag = 0;
 
 // RECONSTRUCTED: hitTest:withEvent: (0x7268, 0x180 bytes)
 // CONFIRMED: guard order hidden/interaction/pointInside → flag path → menuOpen+rect path → nil.
+//
+// BUG IN ORIGINAL RECONSTRUCTION: original code returned nil when menuOpen=NO,
+// which blocked ALL touches including the launcher button — chicken-and-egg deadlock.
+// In the binary, FUN_B6FD0 (opaque, 0x148 bytes) provided an ADDITIONAL path that
+// allowed the launcher area even when menuOpen=NO. We cannot reconstruct FUN_B6FD0.
+//
+// TEST_ONLY FIX: in standalone preview app, nothing game-critical is underneath,
+// so CateMetalView accepts all touches within bounds. ImGui handles its own hit zones.
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     if (self.hidden || !self.isUserInteractionEnabled) return nil;
     if (![self pointInside:point withEvent:event]) return nil;
@@ -54,15 +62,11 @@ static uint8_t g_hitTestFlag = 0;
         return [super hitTest:point withEvent:event];
     }
 
-    // RECONSTRUCTED: FUN_B6FD0 path — INFERRED visible context-window rect check.
-    // TEST_ONLY: skip opaque helper, fall through to menuFrame check.
-
-    // CONFIRMED: menuOpen && CGRectContainsPoint(menuFrame, point) → allow
-    if (self.menuOpen && CGRectContainsPoint(self.menuFrame, point)) {
-        return [super hitTest:point withEvent:event];
-    }
-
-    return nil;
+    // TEST_ONLY: accept all touches. Original binary had FUN_B6FD0 (OPAQUE)
+    // that gated the launcher area; without it, block was total. In game context
+    // this protected underlying Unity touches; in standalone preview there is nothing
+    // underneath, so pass everything through to let ImGui handle interaction.
+    return self;
 }
 
 @end
