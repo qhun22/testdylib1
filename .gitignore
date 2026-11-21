@@ -1,0 +1,45 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Build output
+build/
+Payload/
+*.ipa
+
+# CocoaPods
+Pods/
+
+# Third-party (downloaded at build time)
+ThirdParty/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets / binaries — NEVER commit
+*.dylib
+*.framework/
+*.a
+*.app/
+global-metadata.dat
+Cate.dylib
+UnityFramework
+*.ipa

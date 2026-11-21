@@ -1,0 +1,100 @@
+name: CateMenuPreview
+options:
+  bundleIdPrefix: com.qhun22
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  xcodeVersion: "15.0"
+
+targets:
+  CateMenuPreview:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+
+    info:
+      path: CateMenuPreview/Info.plist
+
+    sources:
+      - path: CateMenuPreview
+        excludes:
+          - "**/*.md"
+      - path: ThirdParty/imgui
+        includes:
+          - "imgui.cpp"
+          - "imgui_draw.cpp"
+          - "imgui_tables.cpp"
+          - "imgui_widgets.cpp"
+          - "backends/imgui_impl_metal.mm"
+        type: group
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.qhun22.cateprev
+        PRODUCT_NAME: CateMenuPreview
+        INFOPLIST_FILE: CateMenuPreview/Info.plist
+        CLANG_ENABLE_OBJC_ARC: YES
+        GCC_ENABLE_OBJC_ARC: YES
+        CLANG_ENABLE_MODULES: YES
+        HEADER_SEARCH_PATHS:
+          - "$(SRCROOT)/ThirdParty/imgui"
+          - "$(SRCROOT)/ThirdParty/imgui/backends"
+          - "$(SRCROOT)/CateMenuPreview/UI"
+          - "$(inherited)"
+        OTHER_CFLAGS: "-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS"
+        OTHER_CPLUSPLUSFLAGS: "-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS"
+        FRAMEWORK_SEARCH_PATHS: "$(inherited)"
+        TARGETED_DEVICE_FAMILY: "1"
+        VALID_ARCHS: "arm64"
+        ARCHS: "arm64"
+        EXCLUDED_ARCHS[sdk=iphonesimulator*]: "arm64"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+        ENABLE_BITCODE: "NO"
+      configs:
+        Debug:
+          GCC_OPTIMIZATION_LEVEL: "0"
+        Release:
+          GCC_OPTIMIZATION_LEVEL: "s"
+
+    dependencies:
+      - sdk: MetalKit.framework
+      - sdk: Metal.framework
+      - sdk: UIKit.framework
+
+    scheme:
+      testTargets:
+        - CateMenuPreviewTests
+
+  CateMenuPreviewTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+
+    sources:
+      - path: CateMenuPreviewTests
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.qhun22.cateprev.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/CateMenuPreview.app/CateMenuPreview"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        HEADER_SEARCH_PATHS:
+          - "$(SRCROOT)/ThirdParty/imgui"
+          - "$(SRCROOT)/ThirdParty/imgui/backends"
+          - "$(SRCROOT)/CateMenuPreview/UI"
+          - "$(inherited)"
+        OTHER_CFLAGS: "-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS"
+        OTHER_CPLUSPLUSFLAGS: "-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS"
+        CLANG_ENABLE_OBJC_ARC: YES
+        GCC_ENABLE_OBJC_ARC: YES
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+
+    dependencies:
+      - target: CateMenuPreview
+      - sdk: MetalKit.framework
+      - sdk: Metal.framework
+      - sdk: UIKit.framework

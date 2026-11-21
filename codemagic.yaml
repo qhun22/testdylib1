@@ -1,0 +1,60 @@
+workflows:
+  ios-unsigned-ipa:
+    name: iOS Unsigned IPA (TrollStore)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      vars:
+        SCHEME: "CateMenuPreview"
+        PROJECT: "CateMenuPreview.xcodeproj"
+        IMGUI_TAG: "v1.90.9"
+
+    scripts:
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen || true
+          xcodegen --version
+
+      - name: Download Dear ImGui
+        script: |
+          mkdir -p ThirdParty
+          git clone --branch "$IMGUI_TAG" --depth 1 \
+            https://github.com/ocornut/imgui.git ThirdParty/imgui
+          echo "ImGui tag: $(git -C ThirdParty/imgui describe --tags)"
+
+      - name: Generate Xcode project
+        script: |
+          xcodegen generate --spec project.yml
+          ls -la "$PROJECT"
+
+      - name: Build unsigned .app
+        script: |
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ARCHS=arm64 \
+            VALID_ARCHS=arm64 \
+            CONFIGURATION_BUILD_DIR="$(pwd)/build/app" \
+            build | xcpretty
+
+      - name: Package unsigned IPA
+        script: |
+          APP=$(find build/app -name "*.app" -maxdepth 1 | head -1)
+          echo "Packaging: $APP"
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          zip -r "${SCHEME}_unsigned.ipa" Payload/
+          rm -rf Payload
+          echo "IPA: $(ls -lh ${SCHEME}_unsigned.ipa)"
+
+    artifacts:
+      - "*_unsigned.ipa"
+      - "build/app/*.app"
